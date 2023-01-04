@@ -4,8 +4,8 @@ async function get_play_diff() {
     console.log('diffing');
     const multiThread = await import('halowordle');
     await multiThread.default();
-    // await multiThread.initThreadPool(navigator.hardwareConcurrency);
-    await multiThread.initThreadPool(4);  // M1
+    await multiThread.initThreadPool(navigator.hardwareConcurrency);  // Intel
+    // await multiThread.initThreadPool(4);  // M1
     multiThread.init_panic_hook();
     const ret = multiThread.get_play_diff("fluff", ["fluff", "fluff", "fluff", "fluff", "fluff", "fluff"]);
     return ret;
@@ -28,8 +28,8 @@ async function prove_play() {
         'halowordle'
     );
     await multiThread.default();
-    // await multiThread.initThreadPool(navigator.hardwareConcurrency);
-    await multiThread.initThreadPool(4);  // M1
+    await multiThread.initThreadPool(navigator.hardwareConcurrency);  // Intel
+    // await multiThread.initThreadPool(4);  // M1
     console.log('here we go');
     const ret = multiThread.prove_play("fluff", ["fluff", "fluff", "fluff", "fluff", "fluff", "fluff"], params);
     return ret;
@@ -45,8 +45,8 @@ async function verify_play(proof: any, diffs_js: any) {
         'halowordle'
     );
     await multiThread.default();
-    // await multiThread.initThreadPool(navigator.hardwareConcurrency);
-    await multiThread.initThreadPool(4);  // M1
+    await multiThread.initThreadPool(navigator.hardwareConcurrency);  // Intel
+    // await multiThread.initThreadPool(4);  // M1
     console.log('here we go');
     const ret = multiThread.verify_play("fluff", proof, diffs_js, params);
     return ret;
