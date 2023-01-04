@@ -1,18 +1,18 @@
-use halo2_proofs::{arithmetic::FieldExt, circuit::*, plonk::*, poly::Rotation};
-use halo2_proofs::{circuit::Value, dev::MockProver, pasta::Fp};
-use halo2_proofs::transcript::{Blake2bRead, Blake2bWrite, Challenge255, EncodedChallenge};
+use halo2_proofs::pasta::EqAffine;
 use halo2_proofs::plonk::{
-    create_proof, keygen_pk, keygen_vk, verify_proof, Advice, Assigned, BatchVerifier, Circuit,
-    Column, ConstraintSystem, Error, Fixed, SingleVerifier, TableColumn, VerificationStrategy,
+    create_proof, keygen_pk, keygen_vk, verify_proof, Assigned, SingleVerifier,
 };
-use halo2_proofs::poly::{commitment::Params};
-use halo2_proofs::pasta::{Eq, EqAffine};
+use halo2_proofs::poly::commitment::Params;
+use halo2_proofs::transcript::{Blake2bRead, Blake2bWrite, Challenge255};
+use halo2_proofs::{circuit::Value, pasta::Fp};
 use rand_core::OsRng;
 use std::fs::File;
-use std::io::{self, Write, Read, BufReader, BufWriter};
+use std::io::{self, BufReader, Read, Write};
 
 mod wordle;
-use crate::wordle::wordle::{*, utils::*};
+use crate::wordle::wordle::{utils::*, *};
+
+use std::time::Instant;
 
 const K: u32 = 14;
 
@@ -31,7 +31,6 @@ fn interpret_diff(diff: Vec<Vec<Fp>>) {
 }
 
 fn verify_play(final_word: String) {
-
     let final_chars = word_to_chars(&final_word);
 
     let empty_circuit = WordleCircuit::<Fp> {
@@ -40,7 +39,6 @@ fn verify_play(final_word: String) {
         word_diffs_green: [[Value::unknown(); WORD_LEN]; WORD_COUNT],
         word_diffs_yellow: [[Value::unknown(); WORD_LEN]; WORD_COUNT],
     };
-
 
     let mut instance = Vec::new();
 
@@ -94,7 +92,7 @@ fn verify_play(final_word: String) {
     }
     instance.push(yellow.clone());
 
-    let mut instance_slice = [
+    let instance_slice = [
         &final_chars_instance.clone()[..],
         &green.clone()[..],
         &yellow.clone()[..],
@@ -106,7 +104,7 @@ fn verify_play(final_word: String) {
     let vk = keygen_vk(&params, &empty_circuit).expect("keygen_vk should not fail");
 
     // Check that a hardcoded proof is satisfied
-    let proof = include_bytes!("../proof.bin");
+    let proof = std::fs::read("../proof.bin").unwrap();
     let strategy = SingleVerifier::new(&params);
     let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
     let result = verify_proof(
@@ -123,9 +121,11 @@ fn verify_play(final_word: String) {
     }
 }
 
-fn prove_play(words: [String; WORD_COUNT], final_word: String) {    
-    let mut poly_words: [Value<Assigned<Fp>>; WORD_COUNT] = [Value::known(Fp::from(123).into()); WORD_COUNT];
-    let mut word_chars: [[Value<Assigned<Fp>>; WORD_LEN]; WORD_COUNT] = [[Value::known(Fp::from(123).into()); WORD_LEN]; WORD_COUNT];
+fn prove_play(words: [String; WORD_COUNT], final_word: String) {
+    let mut poly_words: [Value<Assigned<Fp>>; WORD_COUNT] =
+        [Value::known(Fp::from(123).into()); WORD_COUNT];
+    let mut word_chars: [[Value<Assigned<Fp>>; WORD_LEN]; WORD_COUNT] =
+        [[Value::known(Fp::from(123).into()); WORD_LEN]; WORD_COUNT];
 
     for idx in 0..WORD_COUNT {
         poly_words[idx] = Value::known(Fp::from(word_to_polyhash(&words[idx].clone())).into());
@@ -142,7 +142,8 @@ fn prove_play(words: [String; WORD_COUNT], final_word: String) {
     for idx in 0..WORD_COUNT {
         let chars = word_to_chars(&words[idx].clone());
         for i in 0..WORD_LEN {
-            word_diffs_green[idx][i] = Value::known((Fp::from(chars[i]) - Fp::from(final_chars[i])).into());
+            word_diffs_green[idx][i] =
+                Value::known((Fp::from(chars[i]) - Fp::from(final_chars[i])).into());
         }
 
         for i in 0..WORD_LEN {
@@ -168,7 +169,6 @@ fn prove_play(words: [String; WORD_COUNT], final_word: String) {
         word_diffs_yellow: [[Value::unknown(); WORD_LEN]; WORD_COUNT],
     };
 
-
     let mut instance = Vec::new();
 
     // final word chars
@@ -190,7 +190,9 @@ fn prove_play(words: [String; WORD_COUNT], final_word: String) {
 
     let diffs_json_str = serde_json::to_string(&diffs_u64).unwrap();
     let mut diffs_json_file = File::create("diffs_json.bin").unwrap();
-    diffs_json_file.write_all(diffs_json_str.as_bytes()).unwrap();
+    diffs_json_file
+        .write_all(diffs_json_str.as_bytes())
+        .unwrap();
 
     // color green
     let mut green = vec![];
@@ -210,7 +212,7 @@ fn prove_play(words: [String; WORD_COUNT], final_word: String) {
     }
     instance.push(yellow.clone());
 
-    let mut instance_slice = [
+    let instance_slice = [
         &final_chars_instance.clone()[..],
         &green.clone()[..],
         &yellow.clone()[..],
@@ -242,8 +244,7 @@ fn prove_play(words: [String; WORD_COUNT], final_word: String) {
     .expect("proof generation should not fail");
     let proof: Vec<u8> = transcript.finalize();
 
-    std::fs::write("proof.bin", &proof[..])
-        .expect("should succeed to write new proof");
+    std::fs::write("proof.bin", &proof[..]).expect("should succeed to write new proof");
 
     println!("Successfully wrote proof to proof.bin");
 
@@ -278,7 +279,6 @@ fn write_params() {
 }
 
 fn play(final_word: String) {
-
     let mut running = true;
     let mut counter = 0;
     let mut words = vec![];
@@ -310,7 +310,6 @@ fn play(final_word: String) {
     } else {
         println!("You lose!");
     }
-    
 }
 
 fn main() {
@@ -321,11 +320,20 @@ fn main() {
     io::stdin().read_line(&mut input).unwrap();
     input = input.trim().to_string();
     if input == "play" {
+        let start = Instant::now();
         play(final_word);
+        let duration = start.elapsed();
+        println!("Time elapsed in play() is: {:?}", duration);
     } else if input == "verify" {
+        let start = Instant::now();
         verify_play(final_word);
+        let duration = start.elapsed();
+        println!("Time elapsed in verify_play() is: {:?}", duration);
     } else if input == "write" {
+        let start = Instant::now();
         write_params();
+        let duration = start.elapsed();
+        println!("Time elapsed in write_params() is: {:?}", duration);
     } else {
         println!("Invalid input");
     }

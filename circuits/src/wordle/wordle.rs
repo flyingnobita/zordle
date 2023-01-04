@@ -1,7 +1,7 @@
 use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{AssignedCell, Layouter, Value},
-    plonk::{Advice, Assigned, Column, ConstraintSystem, Constraints, Error, Expression, Selector, Instance},
+    plonk::{Advice, Assigned, Column, ConstraintSystem, Error, Expression, Instance, Selector},
     poly::Rotation,
 };
 use halo2_proofs::{
@@ -21,7 +21,6 @@ pub mod dict;
 
 mod is_zero;
 use is_zero::*;
-
 
 // This helper checks that the value witnessed in a given cell is within a a lookup dictionary table.
 
@@ -59,10 +58,9 @@ pub struct WordCheckConfig<F: FieldExt> {
 // green
 // yellow
 
-impl<F: FieldExt>
-    WordCheckConfig<F>
-{
-    pub fn configure(meta: &mut ConstraintSystem<F>,
+impl<F: FieldExt> WordCheckConfig<F> {
+    pub fn configure(
+        meta: &mut ConstraintSystem<F>,
         q_input: Selector,
         q_diff_g: Selector,
         q_diff_y: Selector,
@@ -110,7 +108,6 @@ impl<F: FieldExt>
 
             vec![(q_lookup * poly_word, table.value)] // check if q_lookup * value is in the table.
         });
-
 
         meta.create_gate("character range check", |meta| {
             let q = meta.query_selector(q_input);
@@ -186,7 +183,12 @@ impl<F: FieldExt>
 
             for i in 0..WORD_LEN {
                 let diff_color_is_zero = meta.query_advice(chars[i], Rotation::cur());
-                constraints.push(q_color_is_zero.clone() * (diff_color_is_zero - (q_green.clone() * diffs_green_is_zero[i].expr() + q_yellow.clone() * diffs_yellow_is_zero[i].expr())));
+                constraints.push(
+                    q_color_is_zero.clone()
+                        * (diff_color_is_zero
+                            - (q_green.clone() * diffs_green_is_zero[i].expr()
+                                + q_yellow.clone() * diffs_yellow_is_zero[i].expr())),
+                );
                 // constraints.push(q_color_is_zero.clone() * diffs_green_is_zero[i].expr() * q_yellow.clone());
             }
 
@@ -195,14 +197,18 @@ impl<F: FieldExt>
 
         meta.create_gate("color check", |meta| {
             let q = meta.query_selector(q_color);
-            
+
             let mut constraints = vec![];
             for i in 0..WORD_LEN {
                 let diff_color = meta.query_advice(chars[i], Rotation(-4));
                 let diff_color_is_zero = meta.query_advice(chars[i], Rotation(-2));
                 let color = meta.query_advice(chars[i], Rotation::cur());
                 constraints.push(q.clone() * diff_color * color.clone());
-                constraints.push(q.clone() * diff_color_is_zero * (Expression::Constant(F::one()) - color.clone()));
+                constraints.push(
+                    q.clone()
+                        * diff_color_is_zero
+                        * (Expression::Constant(F::one()) - color.clone()),
+                );
             }
 
             constraints
@@ -240,8 +246,10 @@ impl<F: FieldExt>
         let mut diffs_green_is_zero_chips = vec![];
         let mut diffs_yellow_is_zero_chips = vec![];
         for i in 0..WORD_LEN {
-            diffs_green_is_zero_chips.push(IsZeroChip::construct(self.diffs_green_is_zero[i].clone()));
-            diffs_yellow_is_zero_chips.push(IsZeroChip::construct(self.diffs_yellow_is_zero[i].clone()));
+            diffs_green_is_zero_chips
+                .push(IsZeroChip::construct(self.diffs_green_is_zero[i].clone()));
+            diffs_yellow_is_zero_chips
+                .push(IsZeroChip::construct(self.diffs_yellow_is_zero[i].clone()));
         }
 
         layouter.assign_region(
@@ -261,11 +269,21 @@ impl<F: FieldExt>
                 region
                     .assign_advice(|| "poly word", self.poly_word, 0, || poly_word)
                     .map(RangeConstrained)?;
-                
+
                 for i in 0..WORD_LEN {
-                    region.assign_advice(|| "input word characters", self.chars[i], 0, || chars[i])?;
-                    region.assign_advice_from_instance(|| "final word characters",
-                    self.final_word_chars_instance, i, self.chars[i], 1)?;
+                    region.assign_advice(
+                        || "input word characters",
+                        self.chars[i],
+                        0,
+                        || chars[i],
+                    )?;
+                    region.assign_advice_from_instance(
+                        || "final word characters",
+                        self.final_word_chars_instance,
+                        i,
+                        self.chars[i],
+                        1,
+                    )?;
                     region.assign_advice(|| "diff_g", self.chars[i], 2, || diffs_green[i])?;
                     region.assign_advice(|| "diff_y", self.chars[i], 3, || diffs_yellow[i])?;
 
@@ -280,7 +298,12 @@ impl<F: FieldExt>
                         }
                     });
                     // println!("i: {:?} diff_g_is_zero: {:?}", i, diff_g_is_zero);
-                    region.assign_advice(|| "diff_g_is_zero", self.chars[i], 4, || diff_g_is_zero)?;
+                    region.assign_advice(
+                        || "diff_g_is_zero",
+                        self.chars[i],
+                        4,
+                        || diff_g_is_zero,
+                    )?;
                     let diff_y_is_zero = diffs_yellow[i].and_then(|v| {
                         if v == F::zero() {
                             Value::known(F::one())
@@ -288,12 +311,27 @@ impl<F: FieldExt>
                             Value::known(F::zero())
                         }
                     });
-                    region.assign_advice(|| "diff_y_is_zero", self.chars[i], 5, || diff_y_is_zero)?;
+                    region.assign_advice(
+                        || "diff_y_is_zero",
+                        self.chars[i],
+                        5,
+                        || diff_y_is_zero,
+                    )?;
 
-                    region.assign_advice_from_instance(|| "color green",
-                    self.char_green_instance, instance_offset * WORD_LEN + i, self.chars[i], 6)?;
-                    region.assign_advice_from_instance(|| "color yellow",
-                    self.char_yellow_instance, instance_offset * WORD_LEN + i, self.chars[i], 7)?;
+                    region.assign_advice_from_instance(
+                        || "color green",
+                        self.char_green_instance,
+                        instance_offset * WORD_LEN + i,
+                        self.chars[i],
+                        6,
+                    )?;
+                    region.assign_advice_from_instance(
+                        || "color yellow",
+                        self.char_yellow_instance,
+                        instance_offset * WORD_LEN + i,
+                        self.chars[i],
+                        7,
+                    )?;
                 }
 
                 Ok(())
@@ -301,7 +339,6 @@ impl<F: FieldExt>
         )
     }
 }
-
 
 #[derive(Default, Clone)]
 pub struct WordleCircuit<F: FieldExt> {
@@ -311,8 +348,7 @@ pub struct WordleCircuit<F: FieldExt> {
     pub word_diffs_yellow: [[Value<F>; WORD_LEN]; WORD_COUNT],
 }
 
-impl<F: FieldExt> Circuit<F> for WordleCircuit<F>
-{
+impl<F: FieldExt> Circuit<F> for WordleCircuit<F> {
     type Config = WordCheckConfig<F>;
     type FloorPlanner = V1;
 
@@ -335,20 +371,21 @@ impl<F: FieldExt> Circuit<F> for WordleCircuit<F>
             meta.advice_column(),
             meta.advice_column(),
             meta.advice_column(),
-            meta.advice_column()            
+            meta.advice_column(),
         ];
         let color_is_zero_advice_column = [
             meta.advice_column(),
             meta.advice_column(),
             meta.advice_column(),
             meta.advice_column(),
-            meta.advice_column()
+            meta.advice_column(),
         ];
         let final_word_chars_instance = meta.instance_column();
         let char_green_instance = meta.instance_column();
         let char_yellow_instance = meta.instance_column();
 
-        WordCheckConfig::configure(meta,
+        WordCheckConfig::configure(
+            meta,
             q_input,
             q_diff_g,
             q_diff_y,
@@ -387,7 +424,6 @@ impl<F: FieldExt> Circuit<F> for WordleCircuit<F>
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -396,10 +432,19 @@ mod tests {
     fn test_wordle_1() {
         let k = 14;
 
-        let words = [String::from("audio"), String::from("hunky"), String::from("funky"), String::from("fluff"), String::from("fluff"), String::from("fluff")];
-        
-        let mut poly_words: [Value<Assigned<Fp>>; WORD_COUNT] = [Value::known(Fp::from(123).into()); WORD_COUNT];
-        let mut word_chars: [[Value<Assigned<Fp>>; WORD_LEN]; WORD_COUNT] = [[Value::known(Fp::from(123).into()); WORD_LEN]; WORD_COUNT];
+        let words = [
+            String::from("audio"),
+            String::from("hunky"),
+            String::from("funky"),
+            String::from("fluff"),
+            String::from("fluff"),
+            String::from("fluff"),
+        ];
+
+        let mut poly_words: [Value<Assigned<Fp>>; WORD_COUNT] =
+            [Value::known(Fp::from(123).into()); WORD_COUNT];
+        let mut word_chars: [[Value<Assigned<Fp>>; WORD_LEN]; WORD_COUNT] =
+            [[Value::known(Fp::from(123).into()); WORD_LEN]; WORD_COUNT];
 
         for idx in 0..WORD_COUNT {
             poly_words[idx] = Value::known(Fp::from(word_to_polyhash(&words[idx].clone())).into());
@@ -417,7 +462,8 @@ mod tests {
         for idx in 0..WORD_COUNT {
             let chars = word_to_chars(&words[idx].clone());
             for i in 0..WORD_LEN {
-                word_diffs_green[idx][i] = Value::known((Fp::from(chars[i]) - Fp::from(final_chars[i])).into());
+                word_diffs_green[idx][i] =
+                    Value::known((Fp::from(chars[i]) - Fp::from(final_chars[i])).into());
             }
 
             for i in 0..WORD_LEN {
@@ -477,7 +523,6 @@ mod tests {
 
         let prover = MockProver::run(k, &circuit, instance).unwrap();
         prover.assert_satisfied();
-
     }
 
     #[cfg(feature = "dev-graph")]
@@ -487,14 +532,21 @@ mod tests {
 
         let root = BitMapBackend::new("wordle-layout.png", (1024, 3096)).into_drawing_area();
         root.fill(&WHITE).unwrap();
-        let root = root
-            .titled("Wordle Layout", ("sans-serif", 60))
-            .unwrap();
+        let root = root.titled("Wordle Layout", ("sans-serif", 60)).unwrap();
 
-        let words = [String::from("audio"), String::from("hunky"), String::from("funky"), String::from("fluff"), String::from("fluff"), String::from("fluff")];
-    
-        let mut poly_words: [Value<Assigned<Fp>>; WORD_COUNT] = [Value::known(Fp::from(123).into()); WORD_COUNT];
-        let mut word_chars: [[Value<Assigned<Fp>>; WORD_LEN]; WORD_COUNT] = [[Value::known(Fp::from(123).into()); WORD_LEN]; WORD_COUNT];
+        let words = [
+            String::from("audio"),
+            String::from("hunky"),
+            String::from("funky"),
+            String::from("fluff"),
+            String::from("fluff"),
+            String::from("fluff"),
+        ];
+
+        let mut poly_words: [Value<Assigned<Fp>>; WORD_COUNT] =
+            [Value::known(Fp::from(123).into()); WORD_COUNT];
+        let mut word_chars: [[Value<Assigned<Fp>>; WORD_LEN]; WORD_COUNT] =
+            [[Value::known(Fp::from(123).into()); WORD_LEN]; WORD_COUNT];
 
         for idx in 0..WORD_COUNT {
             poly_words[idx] = Value::known(Fp::from(word_to_polyhash(&words[idx].clone())).into());
@@ -512,7 +564,8 @@ mod tests {
         for idx in 0..WORD_COUNT {
             let chars = word_to_chars(&words[idx].clone());
             for i in 0..WORD_LEN {
-                word_diffs_green[idx][i] = Value::known((Fp::from(chars[i]) - Fp::from(final_chars[i])).into());
+                word_diffs_green[idx][i] =
+                    Value::known((Fp::from(chars[i]) - Fp::from(final_chars[i])).into());
             }
 
             for i in 0..WORD_LEN {
@@ -535,7 +588,7 @@ mod tests {
             word_diffs_green,
             word_diffs_yellow,
         };
-        
+
         halo2_proofs::dev::CircuitLayout::default()
             .render(9, &circuit, &root)
             .unwrap();

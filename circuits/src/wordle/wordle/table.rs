@@ -8,12 +8,6 @@ use halo2_proofs::{
 
 use serde::{Deserialize, Serialize};
 
-use std::error::Error as StdError;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
-
-use super::utils::*;
 use super::dict::*;
 
 #[derive(Serialize, Deserialize)]
