@@ -104,7 +104,7 @@ fn verify_play(final_word: String) {
     let vk = keygen_vk(&params, &empty_circuit).expect("keygen_vk should not fail");
 
     // Check that a hardcoded proof is satisfied
-    let proof = std::fs::read("../proof.bin").unwrap();
+    let proof = std::fs::read("proof.bin").unwrap();
     let strategy = SingleVerifier::new(&params);
     let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
     let result = verify_proof(
